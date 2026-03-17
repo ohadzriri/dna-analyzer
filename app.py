@@ -91,7 +91,4 @@ else:
         res_data = json.loads(response.choices[0].message.content)
         st.session_state.messages.append({"role": "assistant", "content": res_data["user_reply"]})
         st.session_state.stats = res_data["stats"]
-        st.rerun()        res_data = json.loads(response.choices[0].message.content)
-        st.session_state.messages.append({"role": "assistant", "content": res_data["user_reply"]})
-        st.session_state.stats = res_data["stats"]
         st.rerun()
