@@ -2,88 +2,94 @@ import streamlit as st
 from openai import OpenAI
 import json
 
+# חיבור ל-API
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# עיצוב מותאם אישית - Dark Tech Style
-st.set_page_config(layout="wide", page_title="DNA Profiler")
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: #ffffff; }
-    .stMetric { background-color: #1f2937; padding: 15px; border-radius: 10px; border: 1px solid #3b82f6; }
-    .dna-card { background: linear-gradient(135.2deg, #1e293b 0%, #0f172a 100%); padding: 20px; border-radius: 15px; border-left: 5px solid #3b82f6; margin-bottom: 20px; }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(layout="wide", page_title="Collective Mind DNA")
 
+# 1. אתחול משתנים
 if "messages" not in st.session_state:
     st.session_state.update({
         "messages": [],
-        "stats": {"Vision": 50, "Execution": 50, "Independence": 50},
-        "ins": "ממתין לניתוח ראשוני...",
+        "stats": {"Vision": 50, "Independence": 50, "Execution": 50},
+        "conf": 10,
+        "insight": "מנתח נתוני פתיחה...",
         "init": False
     })
 
-# סיידבר מעוצב
+# 2. סיידבר - המדדים שלך
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/dna-helix.png")
-    st.title("DNA Dashboard")
-    st.divider()
-    for label, value in st.session_state.stats.items():
-        st.metric(label, f"{value}%")
-    st.divider()
-    if st.button("🚀 איפוס אבחון"):
+    st.title("📊 DNA Dashboard")
+    mode = st.radio("מצב תצוגה:", ["צד משתמש", "צד יזם"])
+    
+    if mode == "צד יזם":
+        st.divider()
+        st.metric("Vision", f"{st.session_state.stats['Vision']}%")
+        st.metric("Independence", f"{st.session_state.stats['Independence']}%")
+        st.metric("Execution", f"{st.session_state.stats['Execution']}%")
+        st.write(f"**מהימנות:** {st.session_state.conf}%")
+        st.info(f"**תובנה:** {st.session_state.insight}")
+    
+    if st.button("איפוס מערכת"):
         st.session_state.clear()
         st.rerun()
 
 st.title("🧠 Collective Mind DNA")
-st.write("---")
 
+# 3. לוגיקת האפליקציה
 if not st.session_state.init:
-    with st.container():
-        st.markdown("<div class='dna-card'><h3>שלב 1: סריקת פרופיל</h3><p>הדבק את הלינקדין או הרקע המקצועי שלך כדי שנוכל לבנות את המודל הראשוני.</p></div>", unsafe_allow_html=True)
-        txt = st.text_area("", placeholder="הדבק כאן...", height=150)
-        if st.button("נתח DNA"):
-            if txt:
-                # הנחייה למודל להיות "פרופילר סימולציה"
-                sys = """You are a DNA Profiler. Hebrew, 1st person. 
-                Instead of dry questions, present a high-stakes professional DILEMMA based on the user's background. 
-                Test their 'Proof of Capability'. 
-                Format: JSON {"res": "Dilemma text", "stats": {"Vision": 60, "Execution": 40, "Independence": 50}, "ins": "Initial analysis"}"""
-                
+    st.subheader("ברוך הבא. בוא נתחיל לבנות את ה-DNA המקצועי שלך.")
+    txt = st.text_area("הדבק כאן פרופיל לינקדין או רקע מקצועי:", height=200)
+    
+    if st.button("התחל אבחון"):
+        if txt:
+            with st.spinner("מנתח..."):
+                # הנחיית מערכת מאוזנת וחכמה
+                sys_init = "You are a professional Talent Auditor. Analyze the user's background and ask ONE deep, insightful question in Hebrew (1st person) to start uncovering their professional DNA."
                 res = client.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "system", "content": sys}, {"role": "user", "content": txt}],
-                    response_format={"type": "json_object"}
+                    messages=[{"role": "system", "content": sys_init}, {"role": "user", "content": txt}]
                 )
-                data = json.loads(res.choices[0].message.content)
+                ai_msg = res.choices[0].message.content
                 st.session_state.messages.append({"role": "user", "content": f"רקע: {txt}"})
-                st.session_state.messages.append({"role": "assistant", "content": data['res']})
-                st.session_state.stats = data['stats']
+                st.session_state.messages.append({"role": "assistant", "content": ai_msg})
                 st.session_state.init = True
                 st.rerun()
 
 else:
-    # הצגת הצ'אט בסטייל של בועות דיבור
+    # הצגת הצ'אט
     for m in st.session_state.messages:
         if not m["content"].startswith("רקע:"):
             with st.chat_message(m["role"]):
-                st.markdown(f"<div class='dna-card'>{m['content']}</div>", unsafe_allow_html=True)
+                st.write(m["content"])
 
-    if p := st.chat_input("מה ההחלטה שלך?"):
-        st.session_state.messages.append({"role": "user", "content": p})
-        
-        sys = """You are a Profiler. Hebrew. 
-        1. Analyze the user's decision. 2. Update their DNA stats. 
-        3. Present the NEXT logical challenge or pivot. 
-        Be sharp, professional, and focus on capability proof.
-        JSON format: {"res": "Feedback + Next Dilemma", "stats": {}, "ins": "Deep insight"}"""
-        
-        raw = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "system", "content": sys}] + st.session_state.messages[-6:],
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(raw.choices[0].message.content)
-        st.session_state.messages.append({"role": "assistant", "content": data['res']})
-        st.session_state.stats = data['stats']
-        st.session_state.ins = data['ins']
-        st.rerun()
+    if prompt := st.chat_input("תשובה שלך..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        with st.spinner("מעדכן פרופיל..."):
+            sys_prompt = """
+            You are a Talent Auditor. Talk to the user in Hebrew (1st person). 
+            Be analytical and professional.
+            Return ONLY JSON with:
+            {
+                "res": "Your response + next question",
+                "stats": {"Vision": int, "Independence": int, "Execution": int},
+                "conf": int,
+                "ins": "Deep analytical insight for the investor"
+            }
+            """
+            
+            raw_res = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages[-10:],
+                response_format={"type": "json_object"}
+            )
+            
+            data = json.loads(raw_res.choices[0].message.content)
+            st.session_state.messages.append({"role": "assistant", "content": data['res']})
+            st.session_state.stats = data['stats']
+            st.session_state.conf = data.get('conf', st.session_state.conf)
+            st.session_state.insight = data.get('ins', st.session_state.insight)
+            st.rerun()
