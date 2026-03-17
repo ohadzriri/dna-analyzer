@@ -2,12 +2,12 @@ import streamlit as st
 from openai import OpenAI
 import json
 
-# עיצוב CSS - מבטיח קריאות (מספרים לבנים)
+# 1. הגדרות עיצוב לממשק נקי ומקצועי
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] { color: #ffffff !important; }
     [data-testid="stMetricLabel"] { color: #9ca3af !important; }
-    .stChatMessage { border-radius: 10px; border: 1px solid #3b82f6; margin-bottom: 10px; }
+    .stChatMessage { border-radius: 10px; border: 1px solid #3b82f6; background-color: #1f2937; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -23,7 +23,7 @@ if "messages" not in st.session_state:
     st.session_state.update({
         "messages": [],
         "stats": {"Vision": 50, "Independence": 50, "Execution": 50},
-        "master_insight": "מנתח נתונים...",
+        "master_insight": "ממתין לניתוח ראשוני...",
         "linkedin": ""
     })
 
@@ -32,27 +32,33 @@ with st.sidebar:
     st.metric("Vision", f"{st.session_state.stats['Vision']}%")
     st.metric("Independence", f"{st.session_state.stats['Independence']}%")
     st.metric("Execution", f"{st.session_state.stats['Execution']}%")
-    if st.button("🔄 איפוס"):
+    if st.button("🔄 איפוס מערכת"):
         st.session_state.clear()
         st.rerun()
 
 st.title("🧠 Collective Mind DNA Profiler")
 
+# שלב 1: הזנת הלינקדין והוצאת הדילמה ה"צרופה"
 if not st.session_state.linkedin:
-    li_input = st.text_area("הדבק את ה-About שלך מהלינקדין:", height=200)
-    if st.button("צור דילמה 'תכלס'"):
+    st.subheader("ניתוח פרופיל מקצועי")
+    li_input = st.text_area("הדבק את ה-About מהלינקדין שלך:", height=200, placeholder="I'm an experienced Operations leader...")
+    if st.button("נתח והפק דילמה"):
         if li_input:
             st.session_state.linkedin = li_input
             
-            # הפרומפט המדויק שתוקף את הסתירה בין Ops ל-Data
+            # פרומפט "תופר" - מחייב ניתוח סתירות פנימיות
             first_question_prompt = f"""
-            Context: {li_input}
-            Task:
-            1. Identify a core contradiction in this profile (e.g., Structured Ops vs. Fast Data Science).
-            2. Ask ONE sharp Hebrew question that forces a BINARY choice. 
-            3. Do NOT ask 'what do you prefer'. 
-            4. Create a high-stakes scenario where the user must choose between operational stability and data-driven innovation.
-            5. No intro or compliments. Just the dilemma.
+            User LinkedIn About: "{li_input}"
+            
+            TASK: 
+            1. Identify the core professional tension: The user claims to be both a master of "Structured Processes/Quality" AND "Digital Transformation/Data Science". 
+            2. Create a specific, non-emergency scenario where their own "Structured Processes" (SOPs) are the direct obstacle to the "Innovation/Data" goals they claim to have.
+            3. Ask ONE sharp question in Hebrew that forces them to either 'Kill' their own processes or 'Sacrifice' innovation.
+            
+            STRICT LIMITATIONS:
+            - NO generic "system crashes" or "emergencies". 
+            - NO compliments or introductions. 
+            - Focus on the 'Slow Death' of the company's innovation due to the user's rigid operational success.
             """
             
             res = client.chat.completions.create(
@@ -63,21 +69,22 @@ if not st.session_state.linkedin:
             st.rerun()
 
 else:
+    # הצגת היסטוריה
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.write(m["content"])
 
-    if prompt := st.chat_input("מה ההחלטה שלך?"):
+    if prompt := st.chat_input("ההחלטה שלך (תהיה חד)..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # לוגיקה שמוודאת שה-AI לא מוותר לך אם ניסית לאזן
+        # לוגיקת המשך קשוחה - "אנטי-איזון"
         sys_prompt = """
         You are a Brutally Honest VC Profiler. 
-        If the user tries to balance or mitigate (saying 'I'll do both' or 'it depends'), EXPOSE the fallacy. 
-        Force them into a corner. Demand to know which specific resource they sacrifice.
+        If the user tries to balance (e.g., 'I will optimize both'), call them out for being a 'typical corporate manager' who avoids hard choices.
+        Force a binary trade-off. 
         Return ONLY JSON:
         {
-            "user_reply": "Critique + New Sharp Dilemma (Hebrew)",
-            "master_insight": "DNA Analysis (Hebrew)",
+            "user_reply": "Critique + Shiper Dilemma (Hebrew)",
+            "master_insight": "Deep DNA analysis of their choice (Hebrew)",
             "stats": {"Vision": int, "Independence": int, "Execution": int}
         }
         """
