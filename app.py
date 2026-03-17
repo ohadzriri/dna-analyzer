@@ -2,7 +2,7 @@ import streamlit as st
 from openai import OpenAI
 import json
 
-# עיצוב CSS - מבטיח קריאות וצבעים נכונים
+# עיצוב CSS - מבטיח קריאות (מספרים לבנים)
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] { color: #ffffff !important; }
@@ -27,33 +27,32 @@ if "messages" not in st.session_state:
         "linkedin": ""
     })
 
-# סיידבר עם המדדים
 with st.sidebar:
     st.title("📊 DNA Dashboard")
-    st.metric("Vision (חזון)", f"{st.session_state.stats['Vision']}%")
-    st.metric("Independence (עצמאות)", f"{st.session_state.stats['Independence']}%")
-    st.metric("Execution (ביצוע)", f"{st.session_state.stats['Execution']}%")
-    if st.button("🔄 איפוס אבחון"):
+    st.metric("Vision", f"{st.session_state.stats['Vision']}%")
+    st.metric("Independence", f"{st.session_state.stats['Independence']}%")
+    st.metric("Execution", f"{st.session_state.stats['Execution']}%")
+    if st.button("🔄 איפוס"):
         st.session_state.clear()
         st.rerun()
 
 st.title("🧠 Collective Mind DNA Profiler")
 
-# שלב 1: ניתוח הלינקדין והוצאת השאלה ה"רעילה" הראשונה
 if not st.session_state.linkedin:
-    st.info("הדבק את ה-About שלך כדי להתחיל בסימולציית קבלת החלטות.")
-    li_input = st.text_area("LinkedIn About Section:", height=200)
-    if st.button("צור דילמה מותאמת אישית"):
+    li_input = st.text_area("הדבק את ה-About שלך מהלינקדין:", height=200)
+    if st.button("צור דילמה 'תכלס'"):
         if li_input:
             st.session_state.linkedin = li_input
             
-            # פרומפט שיוצר את השאלה המדויקת שדיברנו עליה
+            # הפרומפט המדויק שתוקף את הסתירה בין Ops ל-Data
             first_question_prompt = f"""
-            You are a Master VC Profiler. Read this LinkedIn About:
-            {li_input}
-            Identify the conflict between the user's skills (e.g. Data vs. Ops).
-            Ask ONE sharp Hebrew question that forces a trade-off. 
-            Do not allow a 'both' answer. Be direct and provocative.
+            Context: {li_input}
+            Task:
+            1. Identify a core contradiction in this profile (e.g., Structured Ops vs. Fast Data Science).
+            2. Ask ONE sharp Hebrew question that forces a BINARY choice. 
+            3. Do NOT ask 'what do you prefer'. 
+            4. Create a high-stakes scenario where the user must choose between operational stability and data-driven innovation.
+            5. No intro or compliments. Just the dilemma.
             """
             
             res = client.chat.completions.create(
@@ -67,22 +66,18 @@ else:
     for m in st.session_state.messages:
         with st.chat_message(m["role"]): st.write(m["content"])
 
-    if prompt := st.chat_input("ההחלטה שלך..."):
+    if prompt := st.chat_input("מה ההחלטה שלך?"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        # לוגיקת "אנטי-איזון" - לא נותן למשתמש לברוח לתשובות כלליות
+        # לוגיקה שמוודאת שה-AI לא מוותר לך אם ניסית לאזן
         sys_prompt = """
         You are a Brutally Honest VC Profiler. 
-        CRITICAL RULES:
-        1. If the user tries to balance or 'mitigate risks' (Both/And approach), CALL THEM OUT.
-        2. Force them back into a Binary Choice (This or That).
-        3. Use the LinkedIn context to make the dilemma feel personal and high-stakes.
-        4. No compliments. No fluff. Max 3 sentences.
-        
+        If the user tries to balance or mitigate (saying 'I'll do both' or 'it depends'), EXPOSE the fallacy. 
+        Force them into a corner. Demand to know which specific resource they sacrifice.
         Return ONLY JSON:
         {
-            "user_reply": "Short critique of their 'balance' + A NEW SHARPER DILEMMA (Hebrew)",
-            "master_insight": "What does their hesitation or choice say about their DNA? (Hebrew)",
+            "user_reply": "Critique + New Sharp Dilemma (Hebrew)",
+            "master_insight": "DNA Analysis (Hebrew)",
             "stats": {"Vision": int, "Independence": int, "Execution": int}
         }
         """
@@ -94,6 +89,9 @@ else:
         )
         
         res_data = json.loads(response.choices[0].message.content)
+        st.session_state.messages.append({"role": "assistant", "content": res_data["user_reply"]})
+        st.session_state.stats = res_data["stats"]
+        st.rerun()        res_data = json.loads(response.choices[0].message.content)
         st.session_state.messages.append({"role": "assistant", "content": res_data["user_reply"]})
         st.session_state.stats = res_data["stats"]
         st.rerun()
