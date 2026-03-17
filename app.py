@@ -21,9 +21,9 @@ with st.sidebar:
     st.divider()
     if mode == "צד יזם (Investor View)":
         st.subheader("📊 מדדי DNA")
-        st.metric("Vision", f"{st.session_state.stats['Vision']}%")
-        st.metric("Independence", f"{st.session_state.stats['Independence']}%")
-        st.metric("Execution", f"{st.session_state.stats['Execution']}%")
+        st.metric("Vision", f"{st.session_state.stats.get('Vision', 50)}%")
+        st.metric("Independence", f"{st.session_state.stats.get('Independence', 50)}%")
+        st.metric("Execution", f"{st.session_state.stats.get('Execution', 50)}%")
         st.write(f"**מהימנות:** {st.session_state.confidence}%")
         st.divider()
         st.subheader("תובנה סמויה")
@@ -43,7 +43,7 @@ if not st.session_state.initialized:
             with st.spinner("מתחבר ל-DNA שלך..."):
                 res = client.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "system", "content": "You are a sharp Profiler. Respond in Hebrew. Talk DIRECTLY to the user (1st person). Be very brief: One short sentence of reflection + one killer DNA question. No long summaries."}] + [{"role": "user", "content": initial_input}]
+                    messages=[{"role": "system", "content": "You are a sharp Profiler. Respond in Hebrew. Talk DIRECTLY to the user (1st person). Be very brief: One short sentence of reflection + one killer DNA question."}] + [{"role": "user", "content": initial_input}]
                 )
                 st.session_state.messages.append({"role": "user", "content": f"רקע: {initial_input}"})
                 st.session_state.messages.append({"role": "assistant", "content": res.choices[0].message.content})
@@ -62,16 +62,23 @@ else:
             st.write(prompt)
 
         with st.spinner("מנתח..."):
-            sys_prompt = "You are a sharp Profiler. Talk DIRECTLY to the user in Hebrew (1st person). Style: Sharp, direct, minimal. Task: Provide one short line of insight and ask the next question to challenge their DNA. Return ONLY JSON."
+            sys_prompt = "You are a sharp Profiler. Talk DIRECTLY to the user in Hebrew (1st person). Style: Sharp, direct, minimal. Task: Provide one short line of insight and ask the next question to challenge their DNA. Return ONLY JSON with keys: 'response', 'stats', 'confidence_level', 'master_insight'."
             
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages[-10:],
                 response_format={ "type": "json_object" }
             )
-            res = json.loads(response.choices[0].message.content)
-            st.session_state.messages.append({"role": "assistant", "content": res["response"]})
-            st.session_state.stats = res["stats"]
-            st.session_state.confidence = min(100, res["confidence_level"])
+            
+            # חילוץ בטוח של הנתונים מה-JSON
+            try:
+                res = json.loads(response.choices[0].message.content)
+                # שימוש ב-.get() כדי למנוע קריסה אם מפתח חסר
+                ai_response = res.get("response", "הבנתי אותך. בוא נמשיך הלאה.")
+                st.session_state.stats = res.get("stats", st.session_state.stats)
+                st.session_state.confidence = min(100, res.get("confidence_level", st.session_state.confidence))
+                st.session_state.master_insight = res.get("master_insight", st.session_state.master_insight)
+                
+                st.session_state.messages.append({"role": "assistant", "content": ai_response})            st.session_state.confidence = min(100, res["confidence_level"])
             st.session_state.master_insight = res["master_insight"]
             st.rerun()
