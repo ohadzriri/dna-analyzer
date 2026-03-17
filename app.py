@@ -2,131 +2,88 @@ import streamlit as st
 from openai import OpenAI
 import json
 
-# אתחול הלקוח
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# פקודה קריטית: מושך את המפתח מהכספת שהגדרת עכשיו
+if "OPENAI_API_KEY" in st.secrets:
+    api_key = st.secrets["OPENAI_API_KEY"]
+else:
+    st.error("שגיאה: המפתח הסודי לא הוגדר ב-Secrets של Streamlit")
+    st.stop()
 
-st.set_page_config(layout="wide", page_title="Collective Mind DNA - Pro Simulator")
+client = OpenAI(api_key=api_key)
 
-# 1. תיקון תצוגה - צבעים בהירים לטקסט ושדה קלט ברור
-st.markdown("""
-    <style>
-    /* רקע כללי */
-    .main { background-color: #0e1117; color: #ffffff; }
-    
-    /* תיקון צבע המדדים (Metrics) - שיהיה לבן וקריא */
-    [data-testid="stMetricValue"] {
-        color: #ffffff !important;
-    }
-    [data-testid="stMetricLabel"] {
-        color: #9ca3af !important;
-    }
-    
-    /* עיצוב תיבות הסטטוס */
-    .status-box { 
-        background-color: #1f2937; 
-        padding: 20px; 
-        border-radius: 12px; 
-        border: 1px solid #3b82f6; 
-        margin-bottom: 20px;
-        color: #ffffff;
-    }
-    
-    /* תיקון שדה הטקסט (Text Area) שיהיה קריא */
-    .stTextArea textarea {
-        background-color: #111827 !important;
-        color: #ffffff !important;
-        border: 1px solid #4b5563 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(layout="wide", page_title="Collective Mind DNA")
 
-# 2. אתחול ה-Session State
+# אתחול זיכרון המערכת
 if "messages" not in st.session_state:
-    st.session_state.update({
-        "messages": [],
-        "stats": {"Vision": 50, "Independence": 50, "Execution": 50},
-        "conf": 20,
-        "insight": "ממתין להחלטה ראשונה...",
-        "init": False
-    })
+    st.session_state.messages = []
+    st.session_state.stats = {"Vision": 50, "Independence": 50, "Execution": 50}
+    st.session_state.master_insight = "מנתח נתונים ראשוניים..."
+    st.session_state.linkedin = ""
 
-# 3. סיידבר
 with st.sidebar:
-    st.title("📊 DNA Dashboard")
-    st.write("---")
-    st.metric("Vision", f"{st.session_state.stats['Vision']}%")
-    st.metric("Execution", f"{st.session_state.stats['Execution']}%")
-    st.metric("Independence", f"{st.session_state.stats['Independence']}%")
-    
-    st.write("---")
-    st.write(f"**מהימנות:** {st.session_state.conf}%")
-    st.progress(st.session_state.conf / 100)
-    
-    with st.expander("👁️ תובנת יזם"):
-        st.info(st.session_state.insight)
-    
-    if st.button("🔄 איפוס סימולציה"):
+    st.title("🚀 DNA Control")
+    view_mode = st.radio("תצוגה:", ["צד משתמש", "צד יזם (Investor View)"])
+    if st.button("איפוס מערכת"):
         st.session_state.clear()
         st.rerun()
 
-st.title("🧠 Collective Mind DNA")
+if view_mode == "צד משתמש":
+    st.title("🧠 Collective Mind DNA")
+    st.info("ברוכים הבאים לאבחון ה-DNA המקצועי. בואו נתחיל.")
 
-# 4. לוגיקת ה-Prompt
-SYS_PROMPT = """
-אתה פרופילר של מנהלים בכירים (Ops, CS, Data). 
-תפקידך: להציב למשתמש דילמות קיצון ניהוליו כדי לחשוף את ה-DNA המקצועי שלו.
-1. הצג תרחיש (Scenario) קונקרטי עם נתונים סותרים.
-2. דרוש החלטה קשה (Trade-off). 
-3. ענה בעברית חדה וישירה.
-4. החזר JSON: {"res": "text", "stats": {"Vision": int, "Independence": int, "Execution": int}, "conf": int, "ins": "insight"}
-"""
-
-# 5. זרימת האפליקציה - שדה לינקדין/רקע
-if not st.session_state.init:
-    st.subheader("שלב 1: ניתוח רקע מקצועי")
-    st.write("הדבק כאן את פרופיל הלינקדין שלך או תיאור קצר של הניסיון שלך:")
-    
-    # שדה הזנת טקסט ברור
-    user_background = st.text_area("תיאור מקצועי / LinkedIn Profile", placeholder="לדוגמה: מנהל אופרציה עם רקע בדאטה...", height=250)
-    
-    if st.button("🚀 התחל ניתוח DNA"):
-        if user_background:
-            with st.spinner("מנתח רקע ובונה דילמה..."):
+    if not st.session_state.linkedin:
+        li_input = st.text_area("הדבק פרופיל לינקדין (או תיאור קצר עליך) להתחלה:", height=150)
+        if st.button("התחל אבחון"):
+            if li_input:
+                st.session_state.linkedin = li_input
                 res = client.chat.completions.create(
                     model="gpt-4o",
-                    messages=[{"role": "system", "content": SYS_PROMPT}, {"role": "user", "content": f"זה הרקע שלי, הצג לי דילמה ראשונה: {user_background}"}],
-                    response_format={"type": "json_object"}
+                    messages=[{"role": "system", "content": "You are a professional profiler. Based on this LinkedIn, ask ONE tough Hebrew question about their professional challenge: " + li_input}]
                 )
-                data = json.loads(res.choices[0].message.content)
-                st.session_state.messages.append({"role": "assistant", "content": data['res']})
-                st.session_state.stats = data['stats']
-                st.session_state.init = True
+                st.session_state.messages.append({"role": "assistant", "content": res.choices[0].message.content})
                 st.rerun()
-        else:
-            st.warning("בבקשה תדביק רקע מקצועי כדי שנוכל להתחיל.")
+    else:
+        for m in st.session_state.messages:
+            with st.chat_message(m["role"]): st.write(m["content"])
 
-else:
-    # הצגת הצ'אט
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(f"<div class='status-box'>{m['content']}</div>", unsafe_allow_html=True)
-
-    if prompt := st.chat_input("מה ההחלטה שלך?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        with st.spinner("מנתח החלטה..."):
-            raw_res = client.chat.completions.create(
+        if prompt := st.chat_input("תשובתך..."):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            
+            sys_prompt = f"""
+            You are a Master VC Profiler. Maintain a SINGLE evolving DNA analysis in Hebrew.
+            Current Stats: {st.session_state.stats}
+            Current Insight: {st.session_state.master_insight}
+            
+            Return ONLY JSON:
+            {{
+                "user_reply": "Hebrew follow-up question",
+                "master_insight": "Updated cohesive paragraph analysis in Hebrew (max 4-5 sentences)",
+                "stats": {{"Vision": int, "Independence": int, "Execution": int}}
+            }}
+            """
+            
+            response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=[{"role": "system", "content": SYS_PROMPT}] + st.session_state.messages[-6:],
-                response_format={"type": "json_object"}
+                messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages,
+                response_format={ "type": "json_object" }
             )
-            data = json.loads(raw_res.choices[0].message.content)
             
-            # עדכון סטטיסטיקות
-            for key in st.session_state.stats:
-                st.session_state.stats[key] = int((st.session_state.stats[key] * 0.6) + (data['stats'].get(key, 50) * 0.4))
-            
-            st.session_state.messages.append({"role": "assistant", "content": data['res']})
-            st.session_state.conf = min(100, st.session_state.conf + 10)
-            st.session_state.insight = data['ins']
+            res = json.loads(response.choices[0].message.content)
+            st.session_state.messages.append({"role": "assistant", "content": res["user_reply"]})
+            st.session_state.stats = res["stats"]
+            st.session_state.master_insight = res["master_insight"]
             st.rerun()
+
+    st.divider()
+    cols = st.columns(3)
+    cols[0].metric("Vision", f"{st.session_state.stats['Vision']}%")
+    cols[1].metric("Independence", f"{st.session_state.stats['Independence']}%")
+    cols[2].metric("Execution", f"{st.session_state.stats['Execution']}%")
+
+else: # Investor View
+    st.title("🕵️ Investor Dashboard")
+    st.subheader(f"ניתוח DNA עבור: {st.session_state.linkedin[:50]}...")
+    st.info(st.session_state.master_insight)
+    st.write("---")
+    st.subheader("מדדים כמותיים")
+    st.json(st.session_state.stats)
