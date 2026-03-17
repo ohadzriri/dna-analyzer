@@ -7,11 +7,11 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.set_page_config(layout="wide", page_title="Collective Mind DNA | Live Tracker")
 
-# אתחול Session State - המידע הזה יהיה הבסיס לזיכרון ארוך הטווח
+# אתחול Session State
 if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.stats = {"Vision": 50, "Independence": 50, "Execution": 50}
-    st.session_state.confidence = 10  # מדד כמה המערכת "בטוחה" באבחון שלה
+    st.session_state.confidence = 10 
     st.session_state.master_insight = "המערכת בתהליך למידה של ה-DNA שלך..."
 
 st.title("🧠 Collective Mind DNA")
@@ -27,40 +27,37 @@ for m in st.session_state.messages:
         st.write(m["content"])
 
 # תיבת קלט קבועה - המשתמש יכול להיכנס כל יום ולעדכן
-if prompt := st.chat_input("שתף מחשבה, דווח על ביצוע משימה או התייעץ על דילמה..."):
+if prompt := st.chat_input("שתף מחשבה, דווח על ביצוע משימה או התייעץ..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
 
     with st.spinner("מעבד את הנתונים לתוך ה-DNA שלך..."):
-        # בניית ה-Prompt שגורם ל-AI להתנהג כמאבחן מתמשך
         sys_prompt = f"""
         You are a Continuous Professional Profiler. 
-        Your goal is to build a dynamic DNA profile of the user based on daily interactions.
+        Your goal is to build a dynamic DNA profile of the user based on interactions.
         
         Current Stats: {st.session_state.stats}
         Current Confidence: {st.session_state.confidence}%
         
         Your task:
-        1. Analyze the new input (task, thought, or dilemma).
-        2. Update the DNA stats (0-100) based on the evidence provided. 
-           - If they report a successful execution, increase 'Execution'. 
-           - If they share a strategic vision, increase 'Vision'.
-        3. Respond in Hebrew: A brief, professional validation + one challenging follow-up question.
-        4. Increment 'confidence_level' (max 100) by 3-8 points per meaningful interaction.
+        1. Analyze the input.
+        2. Update DNA stats (0-100).
+        3. Respond in Hebrew: A brief, professional validation + one challenging follow-up.
+        4. Increment 'confidence_level' (max 100) by 3-8 points.
         
         Return ONLY JSON:
         {{
             "response": "Hebrew text",
             "stats": {{"Vision": int, "Independence": int, "Execution": int}},
             "confidence_level": int,
-            "master_insight": "Deep critical analysis for the investor view (Hebrew)"
+            "master_insight": "Deep critical analysis in Hebrew"
         }}
         """
         
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages[-15:], # שולחים היסטוריה רלוונטית
+            messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages[-15:],
             response_format={ "type": "json_object" }
         )
         
@@ -79,27 +76,16 @@ st.divider()
 st.subheader("DNA Snapshot")
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Vision (חזון ואסטרטגיה)", f"{st.session_state.stats['Vision']}%")
-col2.metric("Independence (עצמאות ניהולית)", f"{st.session_state.stats['Independence']}%")
-col3.metric("Execution (יכולת ביצוע)", f"{st.session_state.stats['Execution']}%")
+col1.metric("Vision", f"{st.session_state.stats['Vision']}%")
+col2.metric("Independence", f"{st.session_state.stats['Independence']}%")
+col3.metric("Execution", f"{st.session_state.stats['Execution']}%")
 
 # אזור הניתוח הסמוי (Investor View)
 with st.expander("🔍 ניתוח עומק למנהלים (Investor View)"):
     st.warning(st.session_state.master_insight)
-    st.write("---")
-    st.write("מדדי DNA נוכחיים:")
     st.bar_chart(st.session_state.stats)
 
-# כפתור איפוס (לצורכי בדיקה)
-if st.sidebar.button("איפוס כל הנתונים"):
+# כפתור איפוס בסיידבר
+if st.sidebar.button("איפוס נתונים"):
     st.session_state.clear()
-    st.rerun()        st.balloons()
-        with st.expander("ראה את סיכום הפרופיל שלך"):
-            st.write(st.session_state.master_insight)
-
-# מדדים בתחתית
-st.divider()
-c1, c2, c3 = st.columns(3)
-c1.metric("Vision", f"{st.session_state.stats['Vision']}%")
-c2.metric("Independence", f"{st.session_state.stats['Independence']}%")
-c3.metric("Execution", f"{st.session_state.stats['Execution']}%")
+    st.rerun()
