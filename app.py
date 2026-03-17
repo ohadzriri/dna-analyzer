@@ -2,6 +2,7 @@ import streamlit as st
 from openai import OpenAI
 import json
 
+# חיבור ל-OpenAI דרך Secrets
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.set_page_config(layout="wide", page_title="Collective Mind DNA")
@@ -28,7 +29,7 @@ with st.sidebar:
         st.subheader("תובנה סמויה")
         st.info(st.session_state.master_insight)
     
-    if st.button("איפוס נתונים"):
+    if st.sidebar.button("איפוס נתונים"):
         st.session_state.clear()
         st.rerun()
 
@@ -61,14 +62,16 @@ else:
             st.write(prompt)
 
         with st.spinner("מנתח..."):
-            sys_prompt = f"""
-            You are a sharp Profiler. Talk DIRECTLY to the user in Hebrew (1st person). 
-            Style: Sharp, direct, minimal.
-            Task: Provide one short line of insight and ask the next question to challenge their DNA.
-            Current Stats: {st.session_state.stats}
-            Return ONLY JSON:
-            {{
-                "response": "Hebrew: One short sentence + next question",
-                "stats": {{"Vision": int, "Independence": int, "Execution": int}},
-                "confidence_level": int,
-                "master_insight": "Internal
+            sys_prompt = "You are a sharp Profiler. Talk DIRECTLY to the user in Hebrew (1st person). Style: Sharp, direct, minimal. Task: Provide one short line of insight and ask the next question to challenge their DNA. Return ONLY JSON."
+            
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[{"role": "system", "content": sys_prompt}] + st.session_state.messages[-10:],
+                response_format={ "type": "json_object" }
+            )
+            res = json.loads(response.choices[0].message.content)
+            st.session_state.messages.append({"role": "assistant", "content": res["response"]})
+            st.session_state.stats = res["stats"]
+            st.session_state.confidence = min(100, res["confidence_level"])
+            st.session_state.master_insight = res["master_insight"]
+            st.rerun()
